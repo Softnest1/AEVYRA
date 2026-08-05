@@ -1,0 +1,111 @@
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  Aevyra — Cloudflare Pages Headers v446                      ║
+# ║  Couvre : mobile iOS/Android, tablette, bureau, TV HD/4K,   ║
+# ║           Smart TV (Samsung Tizen, LG webOS, Hisense VIDAA) ║
+# ║           projecteur, Android Auto, Apple CarPlay,           ║
+# ║           Xbox, PlayStation, Nintendo Switch, Kindle,       ║
+# ║           Opera Mini, Mi Browser, Samsung Internet           ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+# ── Assets immuables (JS/CSS bundlés par Expo Metro) ──────────
+/_expo/static/css/*
+  Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff
+
+/_expo/static/js/*
+  Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff
+
+/_expo/static/*
+  Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff
+
+# ── Fichiers SEO — cache 24h avec revalidation ───────────────
+/robots.txt
+  Cache-Control: public, max-age=86400, must-revalidate
+  Content-Type: text/plain; charset=utf-8
+
+/sitemap.xml
+  Cache-Control: public, max-age=86400, must-revalidate
+  Content-Type: application/xml; charset=utf-8
+
+/manifest.json
+  Cache-Control: public, max-age=86400, must-revalidate
+  Content-Type: application/manifest+json; charset=utf-8
+  Access-Control-Allow-Origin: *
+
+# ── Images publiques — cache 7 jours ─────────────────────────
+/og-image.jpg
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/og-image-share.jpg
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+/favicon.ico
+  Cache-Control: public, max-age=604800, immutable
+  Content-Type: image/x-icon
+
+/favicon.png
+  Cache-Control: public, max-age=604800, immutable
+
+/icon-96.png
+  Cache-Control: public, max-age=604800, immutable
+
+/icon-180.png
+  Cache-Control: public, max-age=604800, immutable
+
+/icon-192.png
+  Cache-Control: public, max-age=604800, immutable
+
+/icon-192-maskable.png
+  Cache-Control: public, max-age=604800, immutable
+
+/icon-512.png
+  Cache-Control: public, max-age=604800, immutable
+
+/icon-512-maskable.png
+  Cache-Control: public, max-age=604800, immutable
+
+# ── index.html — no-cache (revalide à chaque visite via ETag) ─
+/index.html
+  Cache-Control: no-cache, must-revalidate
+  Pragma: no-cache
+  Expires: 0
+  Vary: Accept-Encoding, User-Agent
+  Content-Type: text/html; charset=utf-8
+  Content-Language: fr
+  # Early Hints (HTTP 103) — Cloudflare envoie ces preloads AVANT le HTML
+  # Sur fibre/câble, le gain LCP est de 50-200ms (le navigateur charge en parallèle)
+  # Cloudflare Pages supporte HTTP/103 nativement depuis 2023
+  Link: </og-image.jpg>; rel=preload; as=image; type="image/jpeg", </icon-192.png>; rel=preload; as=image; type="image/png", </icon-512-maskable.png>; rel=preload; as=image; type="image/png", <https://fqlqofpvmqipxnyzitne.supabase.co>; rel=dns-prefetch, <https://fqlqofpvmqipxnyzitne.supabase.co>; rel=preconnect; crossorigin
+  # Timing-Allow-Origin — permet aux outils perf (Lighthouse, WebPageTest) de mesurer les timings réseau
+  Timing-Allow-Origin: *
+  Access-Control-Allow-Origin: *
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://aevyra.uk; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+
+# ── Service Worker — headers obligatoires ────────────────────
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Content-Type: application/javascript; charset=utf-8
+  Service-Worker-Allowed: /
+  X-Content-Type-Options: nosniff
+
+# ── Page offline ──────────────────────────────────────────────
+/offline.html
+  Cache-Control: public, max-age=86400, stale-while-revalidate=3600
+  Content-Type: text/html; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+# ── Toutes les pages — sécurité renforcée + performance ───────
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  X-XSS-Protection: 1; mode=block
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(self), payment=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
+  Cross-Origin-Resource-Policy: same-site

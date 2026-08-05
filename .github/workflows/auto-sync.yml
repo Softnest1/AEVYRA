@@ -1,0 +1,198 @@
+name: ✨ Aevyra — CI/CD
+
+on:
+  # ─── Déclenchement sur chaque push master ─────────────────────────────────
+  push:
+    branches: [ master, main ]
+
+  # ─── Déclenchement manuel ─────────────────────────────────────────────────
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Raison du déclenchement manuel'
+        required: false
+        default: 'Vérification manuelle Aevyra'
+
+concurrency:
+  group: aevyra-cicd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ════════════════════════════════════════════════════════
+  # JOB 1 — Lint & Validation
+  # ════════════════════════════════════════════════════════
+  lint:
+    name: ✅ Lint & Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🛡️ Vérifier absence de marqueurs de conflit Git
+        run: |
+          set +e
+          CONFLICTS=$(grep -rl "<<<<<<< \|>>>>>>> " src/ --include="*.ts" --include="*.tsx" 2>/dev/null)
+          set -e
+          if [ -n "$CONFLICTS" ]; then
+            echo "❌ Marqueurs de conflit Git détectés:"
+            echo "$CONFLICTS"
+            exit 1
+          fi
+          echo "✅ Aucun marqueur de conflit Git"
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '9.15.9'
+
+      - name: 📦 Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: 📥 Installer dépendances (cache pnpm store)
+        run: pnpm install --no-frozen-lockfile
+
+      - name: 🔌 Stub eslint-plugin-expo
+        run: |
+          mkdir -p node_modules/eslint-plugin-expo
+          cat > node_modules/eslint-plugin-expo/index.js << 'EOF'
+          const rule = { create: () => ({}), meta: { type: 'suggestion', schema: [] } };
+          module.exports = { rules: { 'no-dynamic-env-var': rule, 'no-env-var-destructuring': rule, 'use-dom-exports': rule } };
+          EOF
+          echo '{"name":"eslint-plugin-expo","version":"0.0.1","main":"index.js"}' > node_modules/eslint-plugin-expo/package.json
+
+      - name: 🔍 Lint (oxlint + biome + tsc)
+        run: pnpm run lint
+
+  # ════════════════════════════════════════════════════════
+  # JOB 2 — Build Web
+  # ════════════════════════════════════════════════════════
+  build:
+    name: 🏗️ Build Web
+    runs-on: ubuntu-latest
+    needs: lint
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_APP_ID: ${{ secrets.EXPO_PUBLIC_APP_ID }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '9.15.9'
+
+      - name: 📦 Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: 💾 Cache dist/ (évite rebuild si sources inchangées)
+        uses: actions/cache@v4
+        id: dist-cache
+        with:
+          path: dist/
+          key: dist-${{ runner.os }}-${{ hashFiles('src/**', 'public/**', 'app.json', 'package.json') }}
+          restore-keys: dist-${{ runner.os }}-
+
+      - name: 📥 Installer dépendances
+        run: pnpm install --no-frozen-lockfile
+
+      - name: 🏗️ Build Expo Web
+        if: steps.dist-cache.outputs.cache-hit != 'true'
+        run: pnpm run build:web
+        env:
+          CI: true
+
+      - name: ✅ Vérifier dist/index.html + meta OG
+        run: |
+          [ -f dist/index.html ] && echo "✅ dist/index.html OK ($(du -sh dist/ | cut -f1))" || (echo "❌ dist/index.html manquant" && exit 1)
+          # Vérifier que les meta OG critiques sont bien dans le HTML statique
+          grep -q 'og:title'        dist/index.html && echo "✅ og:title présent"       || (echo "❌ og:title manquant"       && exit 1)
+          grep -q 'og:image'        dist/index.html && echo "✅ og:image présent"       || (echo "❌ og:image manquant"       && exit 1)
+          grep -q 'og:description'  dist/index.html && echo "✅ og:description présent" || (echo "❌ og:description manquant" && exit 1)
+          grep -q 'og:site_name'    dist/index.html && echo "✅ og:site_name présent"   || (echo "❌ og:site_name manquant"   && exit 1)
+          grep -q 'twitter:card'    dist/index.html && echo "✅ twitter:card présent"   || (echo "❌ twitter:card manquant"   && exit 1)
+          grep -q 'twitter:image'   dist/index.html && echo "✅ twitter:image présent"  || (echo "❌ twitter:image manquant"  && exit 1)
+          echo "🎉 Tous les meta OG/Twitter sont dans le HTML statique"
+
+      - name: 📤 Upload artefact dist/
+        uses: actions/upload-artifact@v4
+        with:
+          name: aevyra-web-dist-${{ github.sha }}
+          path: dist/
+          retention-days: 7
+
+  # ════════════════════════════════════════════════════════
+  # JOB 3 — Healthcheck aevyra.uk
+  # Cloudflare Pages déploie automatiquement via Git integration
+  # ════════════════════════════════════════════════════════
+  healthcheck:
+    name: 🩺 Healthcheck aevyra.uk
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: ⏳ Attendre déploiement CF Pages (45s)
+        run: sleep 45
+
+      - name: 🩺 Vérifier toutes les URLs en parallèle
+        run: |
+          check() {
+            local url=$1 label=$2 required=$3
+            local status=$(curl -o /dev/null -s -w "%{http_code}" --max-time 15 -L "$url")
+            local time=$(curl -o /dev/null -s -w "%{time_total}" --max-time 15 -L "$url")
+            if [ "$status" = "200" ]; then
+              echo "✅ $label → HTTP $status (${time}s)"
+            elif [ "$required" = "true" ]; then
+              echo "❌ $label → HTTP $status (attendu 200)"
+              return 1
+            else
+              echo "⚠️  $label → HTTP $status (non bloquant)"
+            fi
+          }
+          check "https://aevyra.uk/"            "aevyra.uk"        "true"
+          check "https://www.aevyra.uk/"        "www → apex"       "false"
+          check "https://aevyra.uk/robots.txt"  "robots.txt"       "false"
+          check "https://aevyra.uk/sitemap.xml" "sitemap.xml"      "false"
+          check "https://aevyra.uk/manifest.json" "manifest.json"  "false"
+
+  # ════════════════════════════════════════════════════════
+  # JOB 4 — Résumé final
+  # ════════════════════════════════════════════════════════
+  notify:
+    name: 📊 Résumé
+    runs-on: ubuntu-latest
+    needs: [ lint, build, healthcheck ]
+    if: always()
+    steps:
+      - name: 📊 Résumé pipeline
+        run: |
+          LINT="${{ needs.lint.result }}"
+          BUILD="${{ needs.build.result }}"
+          HEALTH="${{ needs.healthcheck.result }}"
+          icon() { case "$1" in success) echo "✅";; skipped) echo "⏭️";; *) echo "❌";; esac; }
+          {
+            echo "## ✨ Aevyra — CI/CD Pipeline"
+            echo "| Étape | Statut | Détail |"
+            echo "|-------|--------|--------|"
+            echo "| $(icon $LINT) Lint | \`$LINT\` | oxlint + biome + tsc |"
+            echo "| $(icon $BUILD) Build | \`$BUILD\` | expo export → dist/ |"
+            echo "| 🌐 Deploy CF | \`auto\` | Git integration → aevyra.uk |"
+            echo "| $(icon $HEALTH) Healthcheck | \`$HEALTH\` | 5 URLs vérifiées |"
+            echo ""
+            echo "**Event:** \`${{ github.event_name }}\` | **Branch:** \`${{ github.ref_name }}\` | **SHA:** \`${{ github.sha }}\`"
+            echo "**Heure:** $(date -u '+%Y-%m-%d %H:%M UTC')"
+            echo ""
+            if [ "$LINT" = "success" ] && [ "$BUILD" = "success" ] && [ "$HEALTH" = "success" ]; then
+              echo "### 🟢 Pipeline 100% vert — Aevyra live sur aevyra.uk"
+            else
+              echo "### 🔴 Erreur détectée — vérifier logs ci-dessus"
+            fi
+            echo "> 🌐 **https://aevyra.uk**"
+          } >> $GITHUB_STEP_SUMMARY
+

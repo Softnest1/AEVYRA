@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!-- Fichier de vérification Bing Webmaster Tools -->
+<!-- Remplacer "aevyra-bing-verify-token" par le vrai token fourni sur bing.com/webmasters -->
+<!-- Étapes : Bing Webmaster Tools > Add site > Méthode XML file > Uploader ce fichier -->
+<users>
+  <user>aevyra-bing-verify-token</user>
+</users>

@@ -1,0 +1,159 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ═══════════════════════════════════════════════════════════════════════
+     AEVYRA — Fond sombre universel
+     Couvre : mobile (iOS/Android), tablette, bureau, TV HD, 4K, cinéma,
+              projecteur, écran embarqué voiture, Mi Browser, Opera Mini
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  /* Niveau 1 : html + body — couvre 100% des navigateurs standards */
+  html,
+  body {
+    background-color: #0D0D1A !important;
+    /* dvh = dynamic viewport (exclut barres d'adresse mobiles)
+       Fallback vh pour les vieux navigateurs (Opera Mini, Mi Browser < v14) */
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overscroll-behavior: none;        /* supprime le rubber-band blanc iOS/Android */
+    /* Safe-area : encoches iPhone, barre nav Android, barres voiture */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-top:    env(safe-area-inset-top,    0px);
+    padding-left:   env(safe-area-inset-left,   0px);
+    padding-right:  env(safe-area-inset-right,  0px);
+    color-scheme: dark;               /* hint navigateur → fond sombre natif */
+    /* Touch behavior */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Niveau 2 : conteneur racine React/Expo */
+  #root,
+  [data-reactroot] {
+    background-color: #0D0D1A !important;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Niveau 3 : premier enfant direct (Expo Web wrapper) */
+  #root > div,
+  [data-reactroot] > div {
+    flex: 1;
+    background-color: #0D0D1A;
+  }
+
+  /* Niveau 4 : pseudo-élément fallback — Android WebKit / Mi Browser / projecteurs
+     position:fixed couvre toute la surface même sur les très grands écrans (4K, cinéma) */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-color: #0D0D1A;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  /* ── Variables de thème — palette romantique nocturne ──────────────────── */
+  :root {
+    --background:         240 50% 6%;
+    --foreground:         345 100% 95%;
+    --card:               258 40% 10%;
+    --card-foreground:    345 100% 95%;
+    --popover:            258 40% 10%;
+    --popover-foreground: 345 100% 95%;
+    --primary:            47 100% 58%;
+    --primary-foreground: 240 50% 6%;
+    --secondary:          258 35% 18%;
+    --secondary-foreground: 345 100% 95%;
+    --muted:              258 30% 15%;
+    --muted-foreground:   345 30% 65%;
+    --accent:             340 60% 55%;
+    --accent-foreground:  0 0% 98%;
+    --destructive:        0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border:             258 30% 22%;
+    --input:              258 30% 18%;
+    --ring:               47 100% 58%;
+    --radius:             1rem;
+  }
+
+  /* .dark identique — tout l'app est en mode dark permanent */
+  .dark {
+    --background:         240 50% 6%;
+    --foreground:         345 100% 95%;
+    --card:               258 40% 10%;
+    --card-foreground:    345 100% 95%;
+    --popover:            258 40% 10%;
+    --popover-foreground: 345 100% 95%;
+    --primary:            47 100% 58%;
+    --primary-foreground: 240 50% 6%;
+    --secondary:          258 35% 18%;
+    --secondary-foreground: 345 100% 95%;
+    --muted:              258 30% 15%;
+    --muted-foreground:   345 30% 65%;
+    --accent:             340 60% 55%;
+    --accent-foreground:  0 0% 98%;
+    --destructive:        0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border:             258 30% 22%;
+    --input:              258 30% 18%;
+    --ring:               47 100% 58%;
+  }
+
+  /* ── Typographie responsive — fluide de 320px à 5120px ─────────────────── */
+  html {
+    /* clamp(min, preferred, max) — scale linéaire entre les breakpoints */
+    font-size: clamp(14px, 1vw + 10px, 20px);
+    /* Rendu de texte optimal sur tous les moteurs */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'kern' 1, 'liga' 1;
+  }
+
+  /* ── Scrollbar — dark sur tous les navigateurs ──────────────────────────── */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 215, 0, 0.3) transparent;
+    box-sizing: border-box;
+  }
+  *::-webkit-scrollbar        { width: 6px; height: 6px; }
+  *::-webkit-scrollbar-track  { background: transparent; }
+  *::-webkit-scrollbar-thumb  { background: rgba(255, 215, 0, 0.3); border-radius: 3px; }
+  *::-webkit-scrollbar-thumb:hover { background: rgba(255, 215, 0, 0.6); }
+
+  /* ── Focus visible — accessibilité clavier + TV télécommande ────────────── */
+  :focus-visible {
+    outline: 2px solid #FFD700;
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  /* ── Sélection de texte ─────────────────────────────────────────────────── */
+  ::selection {
+    background-color: rgba(255, 215, 0, 0.25);
+    color: #fff;
+  }
+
+  /* ── Images — responsive sur tous écrans ───────────────────────────────── */
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* ── Large screen layout helpers ───────────────────────────────────────── */
+  /* Empêche tout élément de s'étirer indéfiniment sur les TV 4K / cinéma */
+  .content-wrap {
+    width: 100%;
+    max-width: 1800px;
+    margin-inline: auto;
+    padding-inline: clamp(16px, 5vw, 200px);
+  }
+}

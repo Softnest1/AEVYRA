@@ -1,0 +1,23 @@
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  Aevyra — Cloudflare Pages Redirects                        ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+# ── www → apex (301 permanent) ───────────────────────────────
+https://www.aevyra.uk/*    https://aevyra.uk/:splat    301
+
+# ── Alias SEO propres — redirect 301 vers routes internes non-réservées ──────
+# Cloudflare Pages intercepte /register /sign-in /login /join avec 308 hardcodé
+# AVANT de lire _redirects. Seule solution : pointer vers /auth-alias/xxx
+# qui sont de vraies routes expo-router → dist/auth-alias/xxx/index.html (200 confirmé).
+/register                   /auth-alias/register                          301
+/sign-in                    /auth-alias/sign-in                           301
+/login                      /auth-alias/login                             301
+/join                       /join                                         301
+
+# ── Pages SEO longue traîne ───────────────────────────────────────────────────
+/rencontre-astrologique     /seo-alias/rencontre-astrologique             301
+/compatibilite-astrologique /seo-alias/compatibilite-astrologique         301
+/app-rencontre-gratuite     /seo-alias/app-rencontre-gratuite             301
+
+# ── SPA fallback — expo-router web (DOIT être en dernier) ────
+/*    /index.html    200

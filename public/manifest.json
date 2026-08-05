@@ -1,0 +1,160 @@
+{
+  "name": "Aevyra — Rencontre Astrologique Gratuite",
+  "short_name": "Aevyra",
+  "description": "L'application de rencontres qui connecte les âmes par compatibilité astrologique. Rencontres sincères, 100% gratuit, sans carte bancaire.",
+  "start_url": "/",
+  "scope": "/",
+  "id": "https://aevyra.uk/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "theme_color": "#0D0D1A",
+  "background_color": "#0D0D1A",
+  "lang": "fr",
+  "dir": "ltr",
+  "categories": ["lifestyle", "social", "dating"],
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "16x16 32x32 48x48 64x64 96x96 128x128 256x256",
+      "type": "image/x-icon",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/og-image.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Aevyra — Rencontres astrologiques sincères (bureau)"
+    },
+    {
+      "src": "/screenshot-mobile-1.jpg",
+      "sizes": "390x844",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Aevyra — Découvrez vos matchs astrologiques"
+    },
+    {
+      "src": "/screenshot-mobile-2.jpg",
+      "sizes": "390x844",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Aevyra — Compatibilité astrologique détaillée"
+    },
+    {
+      "src": "/og-image-share.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Aevyra — App rencontre astrologique (mobile portrait)"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "S'inscrire gratuitement",
+      "short_name": "Inscription",
+      "description": "Créer un compte Aevyra et trouver son âme sœur",
+      "url": "/register",
+      "icons": [{ "src": "/icon-96.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Se connecter",
+      "short_name": "Connexion",
+      "description": "Accéder à mon espace Aevyra",
+      "url": "/sign-in",
+      "icons": [{ "src": "/icon-96.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Compatibilité astrologique",
+      "short_name": "Compatibilité",
+      "description": "Tester sa compatibilité astrologique gratuitement",
+      "url": "/compatibilite-astrologique",
+      "icons": [{ "src": "/icon-96.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Messagerie",
+      "short_name": "Messages",
+      "description": "Accéder à mes conversations Aevyra",
+      "url": "/",
+      "icons": [{ "src": "/icon-96.png", "sizes": "96x96", "type": "image/png" }]
+    }
+  ],
+  "protocol_handlers": [
+    { "protocol": "web+aevyra", "url": "/?action=%s" }
+  ],
+  "share_target": {
+    "action": "/share-target",
+    "method": "GET",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  },
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.aevyra.rencontreames",
+      "id": "com.aevyra.rencontreames"
+    },
+    {
+      "platform": "itunes",
+      "url": "https://apps.apple.com/app/aevyra-rencontre/id0000000000"
+    }
+  ],
+  "prefer_related_applications": false,
+  "scope_extensions": [{ "origin": "https://aevyra.uk" }],
+  "edge_side_panel": { "preferred_width": 400 },
+  "handle_links": "preferred",
+  "launch_handler": { "client_mode": "focus-existing" },
+  "serviceworker": {
+    "src": "/sw.js",
+    "scope": "/",
+    "update_via_cache": "none",
+    "use_cache": true
+  },
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "text/plain": [".txt"],
+        "image/*": [".jpg", ".jpeg", ".png", ".webp"]
+      }
+    }
+  ]
+}

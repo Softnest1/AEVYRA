@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0D0D1A" />
+  <title>Aevyra — Hors-ligne ✨</title>
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" href="/icon-180.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0D0D1A;
+      --gold:    #FFD700;
+      --purple:  #8B5CF6;
+      --text:    #CCCCE0;
+      --card:    #1A1A2E;
+      --border:  rgba(139,92,246,0.2);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 32px 24px;
+      max-width: 400px;
+      width: 100%;
+    }
+
+    /* Étoile animée */
+    .star-wrapper {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      margin-bottom: 32px;
+    }
+    .star-bg {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 40%, #2D1B69, #0D0D1A);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: pulse 3s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(139,92,246,0.3); }
+      50%       { box-shadow: 0 0 0 20px rgba(139,92,246,0); }
+    }
+    .star-emoji { font-size: 56px; line-height: 1; }
+
+    /* Constellations flottantes */
+    .dots {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .dot {
+      position: absolute;
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--gold);
+      opacity: 0.6;
+      animation: twinkle 2s ease-in-out infinite;
+    }
+    .dot:nth-child(1) { top: 8px;  left: 20px; animation-delay: 0s;    }
+    .dot:nth-child(2) { top: 20px; right: 10px; animation-delay: 0.4s; }
+    .dot:nth-child(3) { bottom: 15px; left: 15px; animation-delay: 0.8s; }
+    .dot:nth-child(4) { bottom: 8px; right: 25px; animation-delay: 1.2s; }
+    .dot:nth-child(5) { top: 50%;  left: 5px; animation-delay: 0.6s; }
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.2; transform: scale(1);   }
+      50%       { opacity: 1;   transform: scale(1.5); }
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: var(--purple);
+      margin-bottom: 24px;
+      opacity: 0.9;
+    }
+
+    p {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--text);
+      margin-bottom: 32px;
+      opacity: 0.8;
+    }
+
+    /* Bouton réessayer */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, var(--purple), #6D28D9);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 14px 32px;
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity 0.2s, transform 0.2s;
+      box-shadow: 0 4px 20px rgba(139,92,246,0.35);
+      margin-bottom: 16px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:hover, .btn:focus { opacity: 0.88; transform: translateY(-1px); }
+    .btn:active            { opacity: 0.75; transform: translateY(0);     }
+
+    /* Indicateur connexion */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 50px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--text);
+      margin-top: 24px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #EF4444;
+    }
+    .status-dot.online { background: #22C55E; }
+
+    /* Version */
+    .version {
+      margin-top: 32px;
+      font-size: 0.75rem;
+      color: rgba(204,204,224,0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="star-wrapper">
+      <div class="dots">
+        <span class="dot"></span><span class="dot"></span>
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      </div>
+      <div class="star-bg">
+        <span class="star-emoji">✨</span>
+      </div>
+    </div>
+
+    <h1>Aevyra</h1>
+    <p class="subtitle">Connexion aux étoiles perdue...</p>
+    <p>
+      Vous êtes actuellement hors-ligne.<br />
+      Vérifiez votre connexion internet et réessayez pour retrouver vos âmes sœurs.
+    </p>
+
+    <button class="btn" onclick="retryConnection()">
+      <span>↺</span> Réessayer
+    </button>
+
+    <a class="btn" href="/" style="background: rgba(139,92,246,0.15); box-shadow: none; border: 1px solid var(--border); color: var(--purple);">
+      🏠 Revenir à l'accueil
+    </a>
+
+    <div class="status-bar">
+      <span class="status-dot" id="dot"></span>
+      <span id="status-text">Hors-ligne</span>
+    </div>
+
+    <p class="version">Aevyra PWA — Service Worker v3</p>
+  </div>
+
+  <script>
+    // Surveiller la connexion réseau
+    function updateStatus() {
+      const dot  = document.getElementById('dot');
+      const text = document.getElementById('status-text');
+      if (navigator.onLine) {
+        dot.classList.add('online');
+        text.textContent = 'Connexion rétablie — rechargement…';
+        setTimeout(() => { window.location.href = '/'; }, 1200);
+      } else {
+        dot.classList.remove('online');
+        text.textContent = 'Hors-ligne';
+      }
+    }
+
+    function retryConnection() {
+      if (navigator.onLine) {
+        window.location.href = '/';
+      } else {
+        // Tenter un fetch pour détecter une vraie connexion
+        fetch('/manifest.json?_=' + Date.now(), { cache: 'no-store' })
+          .then(() => { window.location.href = '/'; })
+          .catch(() => {
+            document.getElementById('status-text').textContent = 'Toujours hors-ligne…';
+          });
+      }
+    }
+
+    window.addEventListener('online',  updateStatus);
+    window.addEventListener('offline', updateStatus);
+    updateStatus();
+  </script>
+</body>
+</html>

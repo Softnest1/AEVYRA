@@ -1,0 +1,172 @@
+{
+  "expo": {
+    "name": "Aevyra",
+    "slug": "aevyra-rencontre-ames",
+    "version": "1.0.978",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "buildNumber": "1",
+      "bundleIdentifier": "com.aevyra.rencontreames",
+      "associatedDomains": [
+        "applinks:aevyra.uk"
+      ],
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Aevyra utilise votre position pour découvrir les âmes près de vous.",
+        "NSLocationAlwaysUsageDescription": "Aevyra utilise votre position pour trouver des connexions à proximité.",
+        "NSCameraUsageDescription": "Aevyra accède à votre caméra pour votre photo de profil.",
+        "NSPhotoLibraryUsageDescription": "Aevyra accède à vos photos pour votre profil romantique.",
+        "NSMicrophoneUsageDescription": "Aevyra utilise votre microphone pour les messages vocaux.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0D0D1A"
+      },
+      "predictiveBackGestureEnabled": false,
+      "versionCode": 1,
+      "package": "com.aevyra.rencontreames",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE",
+        "INTERNET",
+        "VIBRATE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "aevyra.uk",
+              "pathPrefix": "/join"
+            },
+            {
+              "scheme": "https",
+              "host": "www.aevyra.uk",
+              "pathPrefix": "/join"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "aevyra"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png",
+      "name": "Aevyra — App Rencontre Astrologique Gratuite",
+      "shortName": "Aevyra",
+      "description": "✨ Aevyra connecte les âmes par compatibilité astrologique. Rencontres sincères, 100% gratuit, sans carte bancaire. Rejoins des milliers de célibataires spirituels.",
+      "lang": "fr",
+      "themeColor": "#0D0D1A",
+      "backgroundColor": "#0D0D1A",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": "/",
+      "scope": "/",
+      "categories": [
+        "lifestyle",
+        "social",
+        "dating"
+      ],
+      "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
+      "shortcuts": [
+        {
+          "name": "Créer mon profil",
+          "short_name": "Inscription",
+          "description": "Rejoindre Aevyra et trouver son âme sœur",
+          "url": "/(auth)/register",
+          "icons": [
+            {
+              "src": "./assets/favicon.png",
+              "sizes": "192x192"
+            }
+          ]
+        },
+        {
+          "name": "Se connecter",
+          "short_name": "Connexion",
+          "description": "Accéder à mon espace Aevyra",
+          "url": "/(auth)/sign-in",
+          "icons": [
+            {
+              "src": "./assets/favicon.png",
+              "sizes": "192x192"
+            }
+          ]
+        }
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-asset",
+      "expo-sqlite",
+      "expo-font",
+      [
+        "expo-system-ui",
+        {
+          "style": "dark",
+          "backgroundColor": "#0D0D1A"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Autoriser Aevyra à accéder à vos photos pour votre profil romantique",
+          "cameraPermission": "Autoriser Aevyra à accéder à votre caméra pour votre photo de profil"
+        }
+      ],
+      "expo-image",
+      "expo-audio",
+      "expo-file-system",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Aevyra utilise votre position pour trouver les âmes qui brillent près de vous.",
+          "locationWhenInUsePermission": "Aevyra utilise votre position pour découvrir les célibataires autour de vous.",
+          "isIosBackgroundLocationEnabled": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#C084FC",
+          "iosDisplayInForeground": true,
+          "requestPermissionsImmediately": false,
+          "mode": "production"
+        }
+      ]
+    ],
+    "router": {
+      "root": "src"
+    },
+    "experiments": {
+      "typedRoutes": true
+    },
+    "scheme": "aevyra"
+  }
+}

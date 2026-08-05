@@ -1,0 +1,30 @@
+# ═══════════════════════════════════════════════════════════
+# Aevyra — .gitattributes
+# Stratégie de merge : "ours" sur les fichiers source TypeScript
+# → En cas de conflit auto, la version locale (HEAD) gagne toujours
+# ═══════════════════════════════════════════════════════════
+
+# Fichiers source — merge "union" pour éviter les conflits bloquants
+src/**/*.ts  merge=union
+src/**/*.tsx merge=union
+
+# Fichiers config critiques — merge "ours" (notre version prime toujours)
+package.json          merge=ours
+pnpm-lock.yaml        merge=ours
+app.json              merge=ours
+tsconfig.json         merge=ours
+babel.config.js       merge=ours
+metro.config.js       merge=ours
+tailwind.config.js    merge=ours
+
+# Fichiers SEO & public — merge "ours"
+public/**             merge=ours
+
+# Fins de ligne normalisées (Linux LF)
+* text=auto eol=lf
+*.ts  text eol=lf
+*.tsx text eol=lf
+*.js  text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.md   text eol=lf
