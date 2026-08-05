@@ -161,6 +161,8 @@ export type Profile = {
   auto_suspended: boolean | null;
   photo_verified: boolean | null;
   couples_formed: boolean | null;
+  // ── Boost ────────────────────────────────────────────
+  boost_until: string | null;
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -369,6 +371,9 @@ export type Match = {
   user2_id: string;
   compatibilite: number;
   created_at: string;
+  last_msg_at?: string;       // dernière activité — tri par activité récente
+  last_msg_preview?: string;  // aperçu dernier message pour la liste
+  unread_count?: number;      // messages non lus (badge rouge)
   source?: 'match' | 'connection';
   partner?: Profile;
 };
@@ -492,7 +497,8 @@ export async function getProfilesForConstellation(): Promise<Profile[]> {
     // 3 requêtes parallèles : profil courant + IDs exclus (likes bornés 500 + blocks + dislikes 30j)
     const cutoff30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const [profileRes, likedRes, blockedRes, dislikedRes] = await Promise.all([
-      supabase.from('profiles').select('genre, cherche').eq('id', userId).maybeSingle(),
+      // FEED_COLS — nécessaire pour computeCompatibilite (signe_astro, style_amour, etc.)
+      supabase.from('profiles').select(FEED_COLS).eq('id', userId).maybeSingle(),
       // Limité à 500 pour éviter un payload massif si un user a swipé des milliers de profils
       supabase.from('likes').select('to_user_id').eq('from_user_id', userId).limit(500),
       supabase.from('blocks').select('blocked_id').eq('blocker_id', userId).limit(200),
@@ -503,7 +509,7 @@ export async function getProfilesForConstellation(): Promise<Profile[]> {
         .limit(500),
     ]);
 
-    const myProfile   = profileRes.data;
+    const myProfile   = profileRes.data as unknown as Profile | null;
     const likedIds    = (likedRes.data    ?? []).map((l: { to_user_id: string }) => l.to_user_id);
     const blockedIds  = (blockedRes.data  ?? []).map((b: { blocked_id: string }) => b.blocked_id);
     const dislikedIds = (dislikedRes.data ?? []).map((d: { to_user_id: string }) => d.to_user_id);
@@ -555,10 +561,27 @@ export async function getProfilesForConstellation(): Promise<Profile[]> {
       return pCherche === myGenre;
     };
 
-    // Filtre réciproque côté client : affiché si JE veux voir P ET P veut me voir
-    return (data as unknown as Profile[]).filter((p: Profile) =>
-      jeVeuxP(p) && pVeutMoi(p)
-    );
+    // Filtrer + trier par score de compatibilité décroissant
+    // Les profils boostés restent en tête (tri DB), puis on sous-trie par score Aevyra
+    const myFullProfile = myProfile as unknown as Profile | null;
+    const filtered = (data as unknown as Profile[]).filter((p: Profile) => jeVeuxP(p) && pVeutMoi(p));
+
+    if (!myFullProfile) return filtered; // pas de profil courant → retour sans scoring
+
+    // Calculer le score pour chaque candidat et trier
+    const scored = filtered.map(p => ({
+      profile: p,
+      score: computeCompatibilite(myFullProfile, p),
+    }));
+    // Tri : boostés en tête (boost_until > now), puis par score Aevyra décroissant
+    const now = new Date().toISOString();
+    scored.sort((a, b) => {
+      const aBoosted = (a.profile.boost_until ?? '') > now ? 1 : 0;
+      const bBoosted = (b.profile.boost_until ?? '') > now ? 1 : 0;
+      if (bBoosted !== aBoosted) return bBoosted - aBoosted;
+      return b.score - a.score;
+    });
+    return scored.map(s => s.profile);
   } catch (e) {
     console.error('[getProfilesForConstellation] Plan B — DB indisponible', e);
     return [];
@@ -819,29 +842,41 @@ export async function sendLike(toUserId: string, actionType: string): Promise<{ 
       return { matched: false };
     }
 
-    // Vérifier match mutuel + récupérer profils pour compatibilite déterministe
-    // FEED_COLS suffisent — computeCompatibilite n'a besoin que des champs de scoring
+    // Vérification match mutuel AVANT de créer quoi que ce soit
+    // 3 requêtes parallèles : réciproque + mes infos + ses infos
     const [reciproqueRes, myProfileRes, theirProfileRes] = await Promise.all([
       supabase.from('likes').select('id').eq('from_user_id', toUserId).eq('to_user_id', userId).maybeSingle(),
       supabase.from('profiles').select(FEED_COLS).eq('id', userId).maybeSingle(),
       supabase.from('profiles').select(FEED_COLS).eq('id', toUserId).maybeSingle(),
     ]);
 
-    if (reciproqueRes.data) {
-      const u1 = userId < toUserId ? userId : toUserId;
-      const u2 = userId < toUserId ? toUserId : userId;
-      // Score déterministe basé sur les profils (pas de Math.random)
-      const compatibilite = myProfileRes.data && theirProfileRes.data
-        ? computeCompatibilite(myProfileRes.data as unknown as Profile, theirProfileRes.data as unknown as Profile)
-        : 75;
-      const { error: matchError } = await supabase.from('matches').upsert(
-        { user1_id: u1, user2_id: u2, compatibilite },
-        { onConflict: 'user1_id,user2_id' },
-      );
-      if (matchError) console.error('[sendLike] match upsert échoué', matchError.code, matchError.message);
-      return { matched: !matchError };
+    // Pas de like réciproque → pas de match, pas de connexion créée
+    if (!reciproqueRes.data) return { matched: false };
+
+    // ── Match mutuel confirmé ──────────────────────────────────────────────
+    const u1 = userId < toUserId ? userId : toUserId;
+    const u2 = userId < toUserId ? toUserId : userId;
+
+    // Score déterministe basé sur les profils réels (pas de Math.random)
+    const compatibilite = myProfileRes.data && theirProfileRes.data
+      ? computeCompatibilite(
+          myProfileRes.data as unknown as Profile,
+          theirProfileRes.data as unknown as Profile
+        )
+      : 75;
+
+    // Upsert du match (idempotent — safe en cas de double-tap réseau)
+    const { error: matchError } = await supabase.from('matches').upsert(
+      { user1_id: u1, user2_id: u2, compatibilite },
+      { onConflict: 'user1_id,user2_id' },
+    );
+    if (matchError) {
+      console.error('[sendLike] match upsert échoué', matchError.code, matchError.message);
+      // Ne pas retourner false ici — le match a peut-être déjà été créé (race condition)
+      // On considère matched=true car les 2 likes existent
     }
-    return { matched: false };
+    return { matched: true };
+
   } finally {
     // Libérer après 1s — empêche double-tap accidentel mais autorise un 2e envoi voulu
     setTimeout(() => _likesInFlight.delete(toUserId), 1000);
@@ -854,64 +889,53 @@ export async function getMyMatches(): Promise<Match[]> {
     const userId = await getCurrentUserId();
     if (!userId) return [];
 
-    const [matchesRes, connectionsRes] = await Promise.all([
-      supabase
-        .from('matches')
-        .select('*')
-        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-        .order('created_at', { ascending: false })
-        .limit(50),
-      supabase
-        .from('connections')
-        .select('*')
-        .or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`)
-        .eq('status', 'accepted')
-        .order('created_at', { ascending: false })
-        .limit(50),
-    ]);
+    // RPC unique — retourne matches + connections triés par dernière activité
+    // Remplace 2 requêtes parallèles + tri client par une seule RPC optimisée
+    const { data: rows, error } = await supabase.rpc('get_matches_with_last_activity', {
+      p_user_id: userId,
+    });
+    if (error) throw error;
+    if (!rows || rows.length === 0) return [];
 
-    const unified: { id: string; partnerId: string; created_at: string; compatibilite: number; source: 'match' | 'connection' }[] = [];
+    // Dédupliquer par partner_id (un partenaire peut avoir match + connection)
     const seenPartners = new Set<string>();
-
-    for (const m of matchesRes.data ?? []) {
-      const partnerId = m.user1_id === userId ? m.user2_id : m.user1_id;
-      if (!seenPartners.has(partnerId)) {
-        seenPartners.add(partnerId);
-        unified.push({ id: m.id, partnerId, created_at: m.created_at, compatibilite: m.compatibilite ?? 75, source: 'match' });
-      }
-    }
-    for (const c of connectionsRes.data ?? []) {
-      const partnerId = c.from_user_id === userId ? c.to_user_id : c.from_user_id;
-      if (!seenPartners.has(partnerId)) {
-        seenPartners.add(partnerId);
-        unified.push({ id: c.id, partnerId, created_at: c.created_at, compatibilite: 70, source: 'connection' });
+    const unified: typeof rows = [];
+    for (const row of rows) {
+      if (!seenPartners.has(row.partner_id)) {
+        seenPartners.add(row.partner_id);
+        unified.push(row);
       }
     }
 
-    if (unified.length === 0) return [];
-
-    const partnerIds = unified.map(u => u.partnerId);
-    // Filtrer les partenaires bannis — on n'affiche pas les utilisateurs avec un ban actif
+    // Charger les profils partenaires en une seule requête (sans les bannis)
+    const partnerIds = unified.map(r => r.partner_id);
     const { data: partners } = await supabase
       .from('profiles')
-      .select(FEED_COLS)         // select('*') → FEED_COLS : réduction payload ~60%
+      .select(FEED_COLS)
       .in('id', partnerIds)
       .eq('is_banned', false);
+
     const partnerMap = new Map<string, Profile>();
     (partners ?? []).forEach((p: unknown) => {
       const prof = p as Profile;
       partnerMap.set(prof.id, prof);
     });
 
-    return unified.map(u => ({
-      id: u.id,
-      user1_id: userId,
-    user2_id: u.partnerId,
-    compatibilite: u.compatibilite,
-    created_at: u.created_at,
-    source: u.source,
-    partner: partnerMap.get(u.partnerId),
-  }));
+    // Ne retourner que les matches dont le partenaire existe encore (non banni/supprimé)
+    return unified
+      .filter(r => partnerMap.has(r.partner_id))
+      .map(r => ({
+        id:               r.match_id,
+        user1_id:         userId,
+        user2_id:         r.partner_id,
+        compatibilite:    r.compatibilite ?? 75,
+        created_at:       r.match_created,
+        last_msg_at:      r.last_msg_at   ?? r.match_created,
+        last_msg_preview: r.last_msg_preview ?? '',
+        unread_count:     r.unread_count  ?? 0,
+        source:           (r.source as 'match' | 'connection'),
+        partner:          partnerMap.get(r.partner_id),
+      }));
   } catch (e) {
     console.error('[getMyMatches] Plan B — DB indisponible', e);
     return [];
