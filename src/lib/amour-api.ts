@@ -494,94 +494,55 @@ export async function getProfilesForConstellation(): Promise<Profile[]> {
     const userId = await getCurrentUserId();
     if (!userId) return [];
 
-    // 3 requêtes parallèles : profil courant + IDs exclus (likes bornés 500 + blocks + dislikes 30j)
-    const cutoff30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const [profileRes, likedRes, blockedRes, dislikedRes] = await Promise.all([
-      // FEED_COLS — nécessaire pour computeCompatibilite (signe_astro, style_amour, etc.)
-      supabase.from('profiles').select(FEED_COLS).eq('id', userId).maybeSingle(),
-      // Limité à 500 pour éviter un payload massif si un user a swipé des milliers de profils
-      supabase.from('likes').select('to_user_id').eq('from_user_id', userId).limit(500),
-      supabase.from('blocks').select('blocked_id').eq('blocker_id', userId).limit(200),
-      // Dislikes des 30 derniers jours uniquement — après 30j le profil réapparaît
-      supabase.from('dislikes').select('to_user_id')
-        .eq('from_user_id', userId)
-        .gte('created_at', cutoff30d)
-        .limit(500),
-    ]);
-
-    const myProfile   = profileRes.data as unknown as Profile | null;
-    const likedIds    = (likedRes.data    ?? []).map((l: { to_user_id: string }) => l.to_user_id);
-    const blockedIds  = (blockedRes.data  ?? []).map((b: { blocked_id: string }) => b.blocked_id);
-    const dislikedIds = (dislikedRes.data ?? []).map((d: { to_user_id: string }) => d.to_user_id);
-
-    const allExcluded = [...new Set([...likedIds, ...blockedIds, ...dislikedIds])];
-    const excludedIds = allExcluded.slice(0, 500);
-    const hasExclusions = excludedIds.length > 0;
-
-    let query = supabase
+    // Charger le profil courant (nécessaire pour scoring Aevyra + filtres genre)
+    const { data: myRaw } = await supabase
       .from('profiles')
       .select(FEED_COLS)
-      .eq('inscription_complete', true)
-      .eq('is_banned', false)
-      .neq('id', userId)
-      .order('boost_until', { ascending: false, nullsFirst: false })
-      .order('created_at', { ascending: false })
-      .limit(50);
+      .eq('id', userId)
+      .maybeSingle();
+    const myProfile = myRaw as unknown as Profile | null;
 
-    if (hasExclusions) {
-      query = query.not('id', 'in', `(${excludedIds.join(',')})`);
+    // ── RPC get_feed_candidates ──────────────────────────────────────────────
+    // Remplace : 4 requêtes parallèles + NOT IN(500 IDs) + filtre client
+    // Stratégie : anti-join côté DB via EXISTS (index idx_likes_pair,
+    //   idx_dislikes_antijoin, idx_blocks_blocker) — O(log n) à 1M users
+    const { data: rpcData, error: rpcError } = await supabase.rpc(
+      'get_feed_candidates',
+      {
+        p_user_id: userId,
+        p_genre:   myProfile?.genre   ?? '',
+        p_cherche: myProfile?.cherche ?? '',
+        p_limit:   60,
+        p_offset:  0,
+      },
+    );
+
+    if (rpcError) {
+      console.error('[getProfilesForConstellation] RPC error', rpcError.code, rpcError.message);
+      return [];
     }
+    if (!Array.isArray(rpcData) || rpcData.length === 0) return [];
 
-    // Filtre genre côté DB (index idx_profiles_cherche_genre)
-    const cherche   = myProfile?.cherche ?? '';
-    const myGenre   = myProfile?.genre   ?? '';
-    const myCherche = cherche;
+    const candidates = rpcData as unknown as Profile[];
 
-    if (cherche === 'femme' || cherche === 'homme') {
-      if (myGenre !== 'autre') {
-        query = query.eq('genre', cherche);
-      }
-    }
-    // cherche='les_deux' ou 'une_ame' → pas de filtre genre DB
+    // Scoring Aevyra côté client — uniquement sur les 60 candidats retournés
+    // (la RPC a déjà pré-filtré + trié boost/photo_verified côté DB)
+    if (!myProfile) return candidates;
 
-    const { data } = await query;
-    if (!Array.isArray(data)) return [];
-
-    // Filtre réciproque côté client — réciprocité stricte bidirectionnelle
-    const jeVeuxP = (p: Profile) => {
-      if (!myCherche || myCherche === '' || myCherche === 'une_ame') return true;
-      if (myCherche === 'les_deux') return true;
-      return myCherche === (p.genre ?? '');
-    };
-
-    const pVeutMoi = (p: Profile) => {
-      const pCherche = p.cherche ?? '';
-      if (!pCherche || pCherche === '' || pCherche === 'une_ame') return true;
-      if (pCherche === 'les_deux') return true;
-      return pCherche === myGenre;
-    };
-
-    // Filtrer + trier par score de compatibilité décroissant
-    // Les profils boostés restent en tête (tri DB), puis on sous-trie par score Aevyra
-    const myFullProfile = myProfile as unknown as Profile | null;
-    const filtered = (data as unknown as Profile[]).filter((p: Profile) => jeVeuxP(p) && pVeutMoi(p));
-
-    if (!myFullProfile) return filtered; // pas de profil courant → retour sans scoring
-
-    // Calculer le score pour chaque candidat et trier
-    const scored = filtered.map(p => ({
-      profile: p,
-      score: computeCompatibilite(myFullProfile, p),
-    }));
-    // Tri : boostés en tête (boost_until > now), puis par score Aevyra décroissant
     const now = new Date().toISOString();
+    const scored = candidates.map(p => ({
+      profile: p,
+      score:   computeCompatibilite(myProfile, p),
+    }));
+    // Tri final : boostés en tête → score Aevyra décroissant
     scored.sort((a, b) => {
-      const aBoosted = (a.profile.boost_until ?? '') > now ? 1 : 0;
-      const bBoosted = (b.profile.boost_until ?? '') > now ? 1 : 0;
-      if (bBoosted !== aBoosted) return bBoosted - aBoosted;
+      const aB = (a.profile.boost_until ?? '') > now ? 1 : 0;
+      const bB = (b.profile.boost_until ?? '') > now ? 1 : 0;
+      if (bB !== aB) return bB - aB;
       return b.score - a.score;
     });
     return scored.map(s => s.profile);
+
   } catch (e) {
     console.error('[getProfilesForConstellation] Plan B — DB indisponible', e);
     return [];
