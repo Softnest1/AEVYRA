@@ -2,7 +2,7 @@
   "expo": {
     "name": "Aevyra",
     "slug": "aevyra-rencontre-ames",
-    "version": "1.0.981",
+    "version": "1.0.982",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
