@@ -33,17 +33,20 @@ import {
   toggleFavori,
   isFavori,
   getCurrentUserId,
+  getMyProfile,
   reportUser,
   blockUser,
   unblockUser,
   isBlocked,
   triggerChallengeAction,
   getUserBadges,
+  computeCompatibiliteDetail,
   REPORT_REASONS,
   type ReportReason,
   type Profile,
   type ConnectionStatus,
   type UserBadge,
+  type CompatibiliteDetail,
 } from '@/lib/amour-api';
 import { SIGNES_ASTRO } from '@/lib/amour-theme';
 
@@ -391,6 +394,7 @@ export default function ProfileDetail() {
   const [sentActions, setSentActions] = useState<Set<string>>(new Set());
   const [matched,     setMatched]     = useState(false);
   const [pubBadges,   setPubBadges]   = useState<UserBadge[]>([]);
+  const [compatDetail, setCompatDetail] = useState<CompatibiliteDetail | null>(null);
   // ── Accès profil : débloqué si signal déjà envoyé, match ou connexion acceptée ──
   const [signalSent,  setSignalSent]  = useState(false);
 
@@ -431,6 +435,12 @@ export default function ProfileDetail() {
           hasSentSignal(id).then(setSignalSent).catch(() => {});
           // Badges gamification publics du profil visité
           if (p?.id) getUserBadges(p.id).then(setPubBadges).catch(() => {});
+          // Calcul breakdown compatibilité avec mon profil
+          if (p) {
+            getMyProfile().then(me => {
+              if (me) setCompatDetail(computeCompatibiliteDetail(me as Profile, p));
+            }).catch(() => {});
+          }
           // Défi view_profiles : incrémenter à chaque visite de profil
           triggerChallengeAction('view_profiles').catch(() => {});
           // Défi astro_comment : si le profil visité a un signe astro (découverte cosmique)
@@ -1269,20 +1279,50 @@ export default function ProfileDetail() {
                 {/* Émotions à envoyer — seulement si pas encore matchés */}
                 {connStatus !== 'accepted' && (
                   <Section title="ENVOYER UNE ÉMOTION" mt={0}>
-                    {/* Bannière match mutuel */}
+                    {/* Bannière match mutuel avec breakdown compatibilité */}
                     {matched && (
                       <View style={{
-                        backgroundColor: 'rgba(255,215,0,0.15)', borderRadius: cardRadius,
-                        borderWidth: 1, borderColor: 'rgba(255,215,0,0.5)',
-                        padding: gap, marginBottom: gap * 0.6, alignItems: 'center', gap: gap * 0.3,
+                        backgroundColor: 'rgba(255,215,0,0.12)', borderRadius: cardRadius,
+                        borderWidth: 1, borderColor: 'rgba(255,215,0,0.45)',
+                        padding: gap, marginBottom: gap * 0.6, gap: gap * 0.4,
                       }}>
-                        <Text style={{ fontSize: 28 }}>✨💞✨</Text>
-                        <Text style={{ color: '#FFD700', fontWeight: '700', fontSize: 16, textAlign: 'center' }}>
-                          C&apos;est un Match !
-                        </Text>
-                        <Text style={{ color: '#CCCCE0', fontSize: 13, textAlign: 'center' }}>
-                          Vous et {profile?.prenom} vous êtes mutuellement attirés — vous pouvez maintenant vous écrire !
-                        </Text>
+                        <View style={{ alignItems: 'center', gap: gap * 0.3 }}>
+                          <Text style={{ fontSize: 28 }}>✨💞✨</Text>
+                          <Text style={{ color: '#FFD700', fontWeight: '800', fontSize: 16, textAlign: 'center' }}>
+                            C&apos;est un Match !
+                          </Text>
+                          <Text style={{ color: '#CCCCE0', fontSize: 12, textAlign: 'center' }}>
+                            Vous et {profile?.prenom} pouvez maintenant vous écrire
+                          </Text>
+                        </View>
+                        {compatDetail && (
+                          <View style={{ gap: gap * 0.25, marginTop: gap * 0.3 }}>
+                            {[
+                              { label: '🌟 Résonance Astrale',   value: compatDetail.resonanceAstrale },
+                              { label: '⚡ Alchimie Énergies',   value: compatDetail.alchimieEnergie },
+                              { label: '💜 Accord des Âmes',     value: compatDetail.accordDesAmes },
+                              { label: '🔥 Harmonie Désirs',     value: compatDetail.harmonieDesirée },
+                              { label: '🌙 Synchronicité Vie',   value: compatDetail.synchroniciteVie },
+                            ].map(({ label, value }) => (
+                              <React.Fragment key={label}>
+                                <View style={{ gap: 4 }}>
+                                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11 }}>{label}</Text>
+                                    <Text style={{ color: '#FFD700', fontSize: 11, fontWeight: '700' }}>{value}%</Text>
+                                  </View>
+                                  <View style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2 }}>
+                                    <View style={{ height: 3, borderRadius: 2, width: `${value}%`,
+                                      backgroundColor: value >= 80 ? '#FFD700' : value >= 60 ? '#C77DFF' : '#87CEEB' }} />
+                                  </View>
+                                </View>
+                              </React.Fragment>
+                            ))}
+                            <Text style={{ color: '#FFD700', fontWeight: '900', fontSize: 14,
+                              textAlign: 'center', marginTop: gap * 0.2 }}>
+                              Score total : {compatDetail.total}% de compatibilité cosmique
+                            </Text>
+                          </View>
+                        )}
                       </View>
                     )}
                     <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: gap * 0.2 }}>
@@ -1310,17 +1350,47 @@ export default function ProfileDetail() {
                 {/* Bannière match mutuel — visible à tout moment (même après accepted) */}
                 {matched && (
                   <View style={{
-                    backgroundColor: 'rgba(255,215,0,0.15)', borderRadius: cardRadius,
-                    borderWidth: 1, borderColor: 'rgba(255,215,0,0.5)',
-                    padding: gap, alignItems: 'center', gap: gap * 0.3,
+                    backgroundColor: 'rgba(255,215,0,0.12)', borderRadius: cardRadius,
+                    borderWidth: 1, borderColor: 'rgba(255,215,0,0.45)',
+                    padding: gap, gap: gap * 0.4,
                   }}>
-                    <Text style={{ fontSize: 28 }}>✨💞✨</Text>
-                    <Text style={{ color: '#FFD700', fontWeight: '700', fontSize: 16, textAlign: 'center' }}>
-                      C&apos;est un Match !
-                    </Text>
-                    <Text style={{ color: '#CCCCE0', fontSize: 13, textAlign: 'center' }}>
-                      Vous et {profile?.prenom} vous êtes mutuellement attirés — vous pouvez maintenant vous écrire !
-                    </Text>
+                    <View style={{ alignItems: 'center', gap: gap * 0.3 }}>
+                      <Text style={{ fontSize: 28 }}>✨💞✨</Text>
+                      <Text style={{ color: '#FFD700', fontWeight: '800', fontSize: 16, textAlign: 'center' }}>
+                        C&apos;est un Match !
+                      </Text>
+                      <Text style={{ color: '#CCCCE0', fontSize: 12, textAlign: 'center' }}>
+                        Votre connexion cosmique avec {profile?.prenom} est établie
+                      </Text>
+                    </View>
+                    {compatDetail && (
+                      <View style={{ gap: gap * 0.25, marginTop: gap * 0.3 }}>
+                        {[
+                          { label: '🌟 Résonance Astrale', value: compatDetail.resonanceAstrale },
+                          { label: '⚡ Alchimie Énergies', value: compatDetail.alchimieEnergie },
+                          { label: '💜 Accord des Âmes',   value: compatDetail.accordDesAmes },
+                          { label: '🔥 Harmonie Désirs',   value: compatDetail.harmonieDesirée },
+                          { label: '🌙 Synchronicité Vie', value: compatDetail.synchroniciteVie },
+                        ].map(({ label, value }) => (
+                          <React.Fragment key={label}>
+                            <View style={{ gap: 4 }}>
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11 }}>{label}</Text>
+                                <Text style={{ color: '#FFD700', fontSize: 11, fontWeight: '700' }}>{value}%</Text>
+                              </View>
+                              <View style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2 }}>
+                                <View style={{ height: 3, borderRadius: 2, width: `${value}%`,
+                                  backgroundColor: value >= 80 ? '#FFD700' : value >= 60 ? '#C77DFF' : '#87CEEB' }} />
+                              </View>
+                            </View>
+                          </React.Fragment>
+                        ))}
+                        <Text style={{ color: '#FFD700', fontWeight: '900', fontSize: 14,
+                          textAlign: 'center', marginTop: gap * 0.2 }}>
+                          Score total : {compatDetail.total}% de compatibilité cosmique
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 )}
 
